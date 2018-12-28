@@ -94,11 +94,11 @@ def main(_log, _config):
     # keras 2 steps per epoch is number of batches per epoch, not number of samples per epoch
     steps_per_epoch = np.int(p['nsamples'] / p['batch'])
     
-    # the generator for training data
+    # the generator for training data (traindata, label)
     train_data_generator=\
             load_train_data_generator(qids, rawdoc_mat_dir, qid_cwid_label, N_GRAMS, p,\
                     label2tlabel=label2tlabel, sample_label_prob=sample_label_prob)
-
+    
     history = built_model.fit_generator(train_data_generator, steps_per_epoch=steps_per_epoch, epochs=p['epochs'],
                                         verbose=0, callbacks=[dump_weight], max_q_size=15, workers=1, pickle_safe=False)
 
