@@ -9,9 +9,11 @@ ModelPath = "./Model/"
 TrainingQueryPath = "./data/Query_Training/"
 DocumentPath = "./data/100000Doc/"
 
+LoadAllWord = True
+
 LoadWord2VecModel = True
 
-LoadTfIdf = True
+Load_Embedding_Matrix = False
 
 # Word2Vec param
 Word2Vec_size = 300
@@ -38,6 +40,7 @@ def Transform(corpus, w2v_model):
     return np.array(new_corpus)
 
 def LoadingTrainingData():
+    word = []
     query_filename = []
     query_sentence = []
     document_filename = []
@@ -51,6 +54,7 @@ def LoadingTrainingData():
             query = ' '.join([word for line in f.readlines() for word in line.split()[:-1]])
             queries.append(query)
             query_sentence += [query.split()]
+            word += query.split()
 
     for filename in os.listdir(DocumentPath):
         document_filename += [filename]
@@ -58,8 +62,14 @@ def LoadingTrainingData():
             doc = ' '.join([word for line in f.readlines()[3:] for word in line.split()[:-1]])
             documents.append(doc)
             document_sentence += [doc.split()]
+            word += doc.split()
     
-    return query_filename, query_sentence, queries, document_filename, document_sentence, documents
+    if(LoadAllWord):
+        word = np.load(ModelPath + 'all_words.npy')
+    else:
+        word = list(set(word))
+    
+    return word, query_filename, query_sentence, queries, document_filename, document_sentence, documents
 
 
 if __name__ == '__main__':
@@ -71,7 +81,9 @@ if __name__ == '__main__':
     # document_filename : document的檔案名稱list
     # document_sentence : document將每個檔案分成一層list，再將每個list裡面的字分成list (string of list of list)
     # documents : document將每個檔案分成一層list　(string of list)
-    query_filename, query_sentence, queries, document_filename, document_sentence, documents = LoadingTrainingData()
+    word_index, query_filename, query_sentence, queries, document_filename, document_sentence, documents = LoadingTrainingData()
+    if(LoadAllWord == False):
+        np.save(ModelPath + 'all_words', word_index)
 
     ConsoleLog("Word2Vec")
     w2v_model = None
@@ -83,10 +95,40 @@ if __name__ == '__main__':
                             size = Word2Vec_size, window = Word2Vec_window, workers = Word2Vec_worker, iter = Word2Vec_iter, hs = 0)
         w2v_model.save(ModelPath + "word2vec.model")
 
-    # document_tfidfs = None
-    # query_tfidfs = None
-    # if(LoadTfIdf):
+    ConsoleLog("embeddings")
+    if(Load_Embedding_Matrix):
+        embedding_matrix = np.load(ModelPath + 'embedding_matrix.npy')
+    else:
+        embeddings_index = {}
+        word_vector = w2v_model.wv
+        for word,vocab_obj in w2v_model.wv.vocab.items():
+                embeddings_index[word] = word_vector[word]
         
-    # else:
-    #     document_tfidfs = Transform(documents, model)
-    #     query_tfidfs = Transform(queries, model)
+        embedding_matrix = np.zeros((len(word_index) + 1, w2v_model.vector_size))
+        for i in range(len(word_index)):
+            embedding_vector = embeddings_index.get(word_index[i])
+            if (embedding_vector is not None):
+                embedding_matrix[i] = embedding_vector
+        np.save(ModelPath + 'embedding_matrix', embedding_matrix)
+
+    # text_lens = [len(x.split()) for x in alltexts]
+
+    # # Encode & pad texts
+    # # t = Tokenizer()
+    # # t.fit_on_texts(alltexts)
+    # # vocab_size = len(t.word_index) + 1
+    
+    # vocab_size
+    # # Construct embedding matrix
+    # embeddings = Word2Vec.load(embeddings_path)
+    # embedding_matrix = np.zeros((vocab_size, 300))
+    # for word, i in t.word_index.items():
+    #     if word in embeddings:
+    #         embedding_matrix[i] = embeddings[word]
+
+    # # Save text_lengths
+    # with open('%s/text_lengths.pickle' % os.path.dirname(embeddings_path), 'wb') as handle:
+    #     pickle.dump(text_lens, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+    # # Save embeddings matrix
+    # np.save('%s/embeddings_matrix.npy' % os.path.dirname(embeddings_path), embedding_matrix)
