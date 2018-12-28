@@ -9,7 +9,7 @@ ModelPath = "./Model/"
 TrainingQueryPath = "./data/Query_Training/"
 DocumentPath = "./data/100000Doc/"
 
-LoadAllWord = True
+LoadAllWord = False
 
 LoadWord2VecModel = True
 
@@ -63,7 +63,10 @@ def LoadingTrainingData():
             documents.append(doc)
             document_sentence += [doc.split()]
             word += doc.split()
-    
+    # print(len(query_filename))
+    # print(len(document_filename))
+    # print(len(word))
+    # print(word)
     if(LoadAllWord):
         word = np.load(ModelPath + 'all_words.npy')
     else:
@@ -101,9 +104,9 @@ if __name__ == '__main__':
     else:
         embeddings_index = {}
         word_vector = w2v_model.wv
-        for word,vocab_obj in w2v_model.wv.vocab.items():
+        for word, vocab_obj in w2v_model.wv.vocab.items():
                 embeddings_index[word] = word_vector[word]
-        
+        print(len(embeddings_index))
         embedding_matrix = np.zeros((len(word_index) + 1, w2v_model.vector_size))
         for i in range(len(word_index)):
             embedding_vector = embeddings_index.get(word_index[i])
