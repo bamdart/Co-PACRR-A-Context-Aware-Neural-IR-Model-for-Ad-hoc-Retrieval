@@ -110,25 +110,3 @@ if __name__ == '__main__':
             if (embedding_vector is not None):
                 embedding_matrix[i] = embedding_vector
         np.save(ModelPath + 'embedding_matrix', embedding_matrix)
-
-    # text_lens = [len(x.split()) for x in alltexts]
-
-    # # Encode & pad texts
-    # # t = Tokenizer()
-    # # t.fit_on_texts(alltexts)
-    # # vocab_size = len(t.word_index) + 1
-    
-    # vocab_size
-    # # Construct embedding matrix
-    # embeddings = Word2Vec.load(embeddings_path)
-    # embedding_matrix = np.zeros((vocab_size, 300))
-    # for word, i in t.word_index.items():
-    #     if word in embeddings:
-    #         embedding_matrix[i] = embeddings[word]
-
-    # # Save text_lengths
-    # with open('%s/text_lengths.pickle' % os.path.dirname(embeddings_path), 'wb') as handle:
-    #     pickle.dump(text_lens, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
-    # # Save embeddings matrix
-    # np.save('%s/embeddings_matrix.npy' % os.path.dirname(embeddings_path), embedding_matrix)
