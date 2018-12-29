@@ -121,6 +121,180 @@ def convert_cwid_udim_simmat(qids, qid_cwid_rmat, select_pos_func, qid_term_idf,
                                 mode='constant', constant_values=pad_value).astype(np.float32))    
     return qid_cwid_mat, qid_ext_idfarr
 
+'''
+還不能用
+qid_wlen_cwid_mat : query在不同n-gram跟doc的similar matrix，丟qid_wlen_cwid_mat進來
+qid_cwid_label : query跟doc是否有關，目前沒有這個
+query_idf : query的idf，丟qid_ext_idfarr進來
+sample_qids : query列表，丟qids進來
+'''
+def sample_train_data_weighted(qid_wlen_cwid_mat, qid_cwid_label, query_idfs, sample_qids):
+    label2tlabel = {4:2,3:2,2:2,1:1,0:0,-2:0}#這裡我們應該只有1跟0
+    sample_label_prob = {2:0.5,1:0.5}#這裡我們應該只有1
+    random_seed = 14
+    n_batch = 32
+    NUM_NEG = 10
+    n_query_terms = MAX_QUERY_LENGTH
+    n_dims = SIM_DIM
+    random_shuffle = True
+    binarysimm =  True
+    
+    np.random.seed(random_seed)
+    qid_label_cwids=dict()
+    label_count = dict()
+    label_qid_count = dict()
+    for qid in sample_qids:
+
+        if qid not in qid_cwid_label or qid not in qid_wlen_cwid_mat:
+            logger.error('%d in qid_cwid_label %r, in qid_cwid_mat %r'%\
+                    (qid,qid in qid_cwid_label, qid in qid_wlen_cwid_mat))
+            continue
+
+        qid_label_cwids[qid]=dict()
+        wlen_k = list(qid_wlen_cwid_mat[qid].keys())[0]
+
+
+        for cwid in qid_cwid_label[qid]:
+            l = label2tlabel[qid_cwid_label[qid][cwid]]
+
+            if cwid not in qid_wlen_cwid_mat[qid][wlen_k]:
+                logger.error('%s not in %d in qid_wlen_cwid_mat'%(cwid, qid))
+                continue
+
+            if l not in qid_label_cwids[qid]:
+                qid_label_cwids[qid][l] = list()
+
+            qid_label_cwids[qid][l].append(cwid)
+
+            if l not in label_qid_count:
+                label_qid_count[l] = dict()
+
+            if qid not in label_qid_count[l]:
+                label_qid_count[l][qid]=0
+
+            label_qid_count[l][qid] += 1
+
+            if l not in label_count:
+                label_count[l] = 0
+
+            label_count[l] += 1
+       
+    if len(sample_label_prob) == 0:
+        total_count = sum([label_count[l] for l in label_count if l > 0])
+        sample_label_prob = {l:label_count[l]/float(total_count) for l in label_count if l > 0}
+        logger.error('nature sample_label_prob', sample_label_prob)
+
+    label_qid_prob = dict()
+    for l in label_qid_count:
+        if l > 0:
+            total_count = label_count[l]
+            label_qid_prob[l] = {qid:label_qid_count[l][qid]/float(total_count) for qid in label_qid_count[l]}
+            
+    sample_label_qid_prob = {l:[label_qid_prob[l][qid] if qid in label_qid_prob[l] else 0 for qid in sample_qids] for l in label_qid_prob}
+
+    while 1:
+        pos_batch = dict()
+        neg_batch = dict()
+        qid_batch = list()
+        pcwid_batch = list()
+        ncwid_batch = list()
+        qidf_batch = list()
+        ys = list()
+
+        selected_labels = np.random.choice([l for l in sorted(sample_label_prob)], size=n_batch, replace=True, p=[sample_label_prob[l] for l in sorted(sample_label_prob)])
+
+        label_counter = Counter(selected_labels)
+        total_train_num = 0
+
+        for label in label_counter:
+            nl_selected = label_counter[label]
+
+            if nl_selected == 0:
+                continue
+
+            selected_qids = np.random.choice(sample_qids, size=nl_selected, replace=True, p=sample_label_qid_prob[label])
+            qid_counter = Counter(selected_qids)
+
+            for qid in qid_counter: 
+                pos_label = 0
+                nq_selected = qid_counter[qid]
+
+                if nq_selected == 0:
+                    continue
+                for nl in reversed(range(label)):
+                    if nl in qid_label_cwids[qid]:
+                        pos_label = label
+                        neg_label = nl
+                        break
+
+                if pos_label != label:
+                    continue
+
+                pos_cwids = qid_label_cwids[qid][label]
+                neg_cwids = qid_label_cwids[qid][nl]
+                n_pos, n_neg = len(pos_cwids), len(neg_cwids)
+                idx_poses = np.random.choice(list(range(n_pos)),size=nq_selected, replace=True)
+                min_wlen = min(qid_wlen_cwid_mat[qid])
+
+                for wlen in qid_wlen_cwid_mat[qid]:
+                    if wlen not in pos_batch:
+                        pos_batch[wlen] = list()
+
+                    for pi in idx_poses:
+                        p_cwid = pos_cwids[pi]
+                        pos_batch[wlen].append(qid_wlen_cwid_mat[qid][wlen][p_cwid])
+
+                        if wlen == min_wlen:
+                            ys.append(1)
+
+                for neg_ind in range(NUM_NEG):
+                    idx_negs = np.random.choice(list(range(n_neg)),size=nq_selected, replace=True)
+                    min_wlen = min(qid_wlen_cwid_mat[qid])
+
+                    for wlen in qid_wlen_cwid_mat[qid]:
+                        if wlen not in neg_batch:
+                            neg_batch[wlen] = dict()
+
+                        if neg_ind not in neg_batch[wlen]:
+                            neg_batch[wlen][neg_ind]=list()
+
+                        for ni in idx_negs:
+                            n_cwid = neg_cwids[ni]
+                            neg_batch[wlen][neg_ind].append(qid_wlen_cwid_mat[qid][wlen][n_cwid])
+
+                qidf_batch.append(query_idfs[qid].reshape((1,n_query_terms,1)).repeat(nq_selected, axis=0))
+
+        total_train_num = len(ys)
+
+        if random_shuffle:
+            shuffled_index=np.random.permutation(list(range(total_train_num)))
+        else:
+            shuffled_index = list(range(total_train_num))
+
+        train_data = dict()
+        labels = np.array(ys)[shuffled_index]
+
+        getmat = lambda x: np.array(x)
+        
+        for wlen in pos_batch:
+            train_data['pos_wlen_%d'%wlen] = getmat(pos_batch[wlen])[shuffled_index,:]
+            for neg_ind in range(NUM_NEG):
+                train_data['neg%d_wlen_%d'%(neg_ind,wlen)] = np.array(getmat(neg_batch[wlen][neg_ind]))[shuffled_index,:]
+
+        if binarysimm:
+            for k in train_data:
+                assert k.find("_wlen_") != -1, "data contains non-simmat objects"
+                train_data[k] = (train_data[k] >= 0.999).astype(np.int8)
+
+
+        train_data['query_idf'] = np.concatenate(qidf_batch, axis=0)[shuffled_index,:]
+
+        train_data['permute'] = np.array([[(bi, qi) for qi in np.random.permutation(n_query_terms)]
+                                          for bi in range(n_batch)], dtype=np.int)
+        # yield (train_data, labels)
+        return train_data, labels
+
+
 # 看你有幾個query  從1.npy開始讀取
 qids = []
 for i in range(1, 2):
