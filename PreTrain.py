@@ -11,7 +11,7 @@ DocumentPath = "./data/100000Doc/"
 
 LoadAllWord = False
 
-LoadWord2VecModel = True
+LoadWord2VecModel = False
 
 Load_Embedding_Matrix = False
 
@@ -51,7 +51,7 @@ def LoadingTrainingData():
     for filename in os.listdir(TrainingQueryPath):
         query_filename += [filename]
         with open(TrainingQueryPath + filename) as f:
-            query = ' '.join([word for line in f.readlines() for word in line.split()[:-1]])
+            query = ' '.join([word for line in f.readlines() for word in line.split()])
             queries.append(query)
             query_sentence += [query.split()]
             word += query.split()
@@ -59,13 +59,13 @@ def LoadingTrainingData():
     for filename in os.listdir(DocumentPath):
         document_filename += [filename]
         with open(DocumentPath + filename) as f:
-            doc = ' '.join([word for line in f.readlines()[3:] for word in line.split()[:-1]])
+            doc = ' '.join([word for line in f.readlines() for word in line.split()])
             documents.append(doc)
             document_sentence += [doc.split()]
             word += doc.split()
-    # print(len(query_filename))
-    # print(len(document_filename))
-    # print(len(word))
+    print(len(query_filename))
+    print(len(document_filename))
+    print(len(word))
     # print(word)
     if(LoadAllWord):
         word = np.load(ModelPath + 'all_words.npy')
