@@ -16,7 +16,7 @@ LoadWord2VecModel = False
 Load_Embedding_Matrix = False
 
 # Word2Vec param
-Word2Vec_size = 300
+Word2Vec_size = 250
 Word2Vec_window = 10
 Word2Vec_worker = 1000
 Word2Vec_iter = 100
