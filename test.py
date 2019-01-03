@@ -145,10 +145,10 @@ def sample_train_data_weighted(qid_wlen_cwid_mat, qid_cwid_label, query_idfs, sa
     label_qid_count = dict()
     for qid in sample_qids:
 
-        if qid not in qid_cwid_label or qid not in qid_wlen_cwid_mat:
-            logger.error('%d in qid_cwid_label %r, in qid_cwid_mat %r'%\
-                    (qid,qid in qid_cwid_label, qid in qid_wlen_cwid_mat))
-            continue
+        # if qid not in qid_cwid_label or qid not in qid_wlen_cwid_mat:
+        #     logger.error('%d in qid_cwid_label %r, in qid_cwid_mat %r'%\
+        #             (qid,qid in qid_cwid_label, qid in qid_wlen_cwid_mat))
+        #     continue
 
         qid_label_cwids[qid]=dict()
         wlen_k = list(qid_wlen_cwid_mat[qid].keys())[0]
@@ -303,6 +303,7 @@ def load_training_data():
     qid_topic_idf, qid_desc_idf = load_query_idf(qids)
     qid_cwid_rmat, qid_term_idf = _load_doc_mat_desc(qids, qid_topic_idf, qid_desc_idf) # 讀取doc的npy
 
+    qid_cwid_label = np.ones((150,1000))
     select_pos_func = getattr(select_doc_pos, 'select_pos_firstk')
     mat_ngrams = [3]#[max(N_GRAMS)]
 
