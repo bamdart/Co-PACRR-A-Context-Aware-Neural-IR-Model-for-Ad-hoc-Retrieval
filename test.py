@@ -2,6 +2,7 @@ import numpy as np
 import select_doc_pos
 import os 
 from collections import Counter
+import logging
 
 MAX_QUERY_LENGTH = 16#param_val['maxqlen'] 
 SIM_DIM = 800#param_val['simdim']
@@ -9,6 +10,7 @@ usetopic = False
 usedesc = True
 doc_mat_dir = 'simmat\\'
 
+logger = logging.getLogger('pacrr')
 
 def load_query_idf(qids):
     qid_desc_idf = dict()
@@ -43,10 +45,11 @@ def _load_doc_mat_desc(qids, qid_topic_idf, qid_desc_idf):
 
         dirPath = 'simmat/desc_doc_mat/' + str(qid)
         cwid_list = [f for f in os.listdir(dirPath) if os.path.isfile(os.path.join(dirPath, f))]
-        print(cwid_list)
+        # print(cwid_list)
         for cwid in cwid_list: ##############  這邊要改成讀取資料夾內的所有npy
-            topic_cwid_f = doc_mat_dir + 'topic_doc_mat/%d/%s'%(qid, cwid)
-            desc_cwid_f = doc_mat_dir + 'desc_doc_mat/%d/%s'%(qid, cwid)
+            cwid = cwid[:-4]
+            topic_cwid_f = doc_mat_dir + 'topic_doc_mat/%d/%s.npy'%(qid, cwid)
+            desc_cwid_f = doc_mat_dir + 'desc_doc_mat/%d/%s.npy'%(qid, cwid)
             topic_mat, desc_mat = np.empty((0,0), dtype=np.float32), np.empty((0,0), dtype=np.float32)
             if usetopic:
                 topic_mat = np.load(topic_cwid_f)
@@ -158,11 +161,17 @@ def sample_train_data_weighted(qid_wlen_cwid_mat, qid_cwid_label, query_idfs, sa
         #             (qid,qid in qid_cwid_label, qid in qid_wlen_cwid_mat))
         #     continue
 
-        
+        if qid not in qid_wlen_cwid_mat:
+            logger.error('%d, in qid_cwid_mat %r'%\
+                    (qid, qid in qid_wlen_cwid_mat))
+            continue
 
         qid_label_cwids[qid - 1]=dict()
-        print(qid_wlen_cwid_mat)
+        print(qid)
+        print(qid_wlen_cwid_mat[qid])
+        print(qid)
         wlen_k = list(qid_wlen_cwid_mat[qid].keys())[0]
+
         # wlen_k = len(qid_wlen_cwid_mat[qid])
         # wlen_k = 1
 
