@@ -45,8 +45,8 @@ def _load_doc_mat_desc(qids, qid_topic_idf, qid_desc_idf):
         cwid_list = [f for f in os.listdir(dirPath) if os.path.isfile(os.path.join(dirPath, f))]
         print(cwid_list)
         for cwid in cwid_list: ##############  這邊要改成讀取資料夾內的所有npy
-            topic_cwid_f = doc_mat_dir + '/topic_doc_mat/%d/%s.npy'%(qid, cwid)
-            desc_cwid_f = doc_mat_dir + '/desc_doc_mat/%d/%s.npy'%(qid, cwid)
+            topic_cwid_f = doc_mat_dir + 'topic_doc_mat/%d/%s'%(qid, cwid)
+            desc_cwid_f = doc_mat_dir + 'desc_doc_mat/%d/%s'%(qid, cwid)
             topic_mat, desc_mat = np.empty((0,0), dtype=np.float32), np.empty((0,0), dtype=np.float32)
             if usetopic:
                 topic_mat = np.load(topic_cwid_f)
