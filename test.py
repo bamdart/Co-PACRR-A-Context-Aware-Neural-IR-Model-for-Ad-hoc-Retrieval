@@ -1,20 +1,21 @@
 import numpy as np
 import select_doc_pos
 import glob 
+from collections import Counter
 
 MAX_QUERY_LENGTH = 16#param_val['maxqlen'] 
 SIM_DIM = 800#param_val['simdim']
-usetopic = True
+usetopic = False
 usedesc = True
-doc_mat_dir = 'simmat\\cosine\\'
+doc_mat_dir = 'simmat\\'
 
 
 def load_query_idf(qids):
     qid_desc_idf = dict()
     qid_topic_idf = dict()
     for qid in qids:
-        qid_desc_idf[qid] = np.load(doc_mat_dir + 'query_idf\\desc_term_idf\\%d.npy' % qid)
-        qid_topic_idf[qid] = np.load(doc_mat_dir + 'query_idf\\topic_term_idf\\%d.npy' % qid)
+        qid_desc_idf[qid] = np.load(doc_mat_dir + 'query_idf\\%d.npy' % qid)
+        # qid_topic_idf[qid] = np.load(doc_mat_dir + 'query_idf\\topic_term_idf\\%d.npy' % qid)
     return qid_topic_idf, qid_desc_idf
 
 def _load_doc_mat_desc(qids, qid_topic_idf, qid_desc_idf):
@@ -22,7 +23,8 @@ def _load_doc_mat_desc(qids, qid_topic_idf, qid_desc_idf):
     qid_term_idf = dict()
     for qid in sorted(qids):
         qid_cwid_simmat[qid]=dict()
-        topic_idf_arr, desc_idf_arr = qid_topic_idf[qid], qid_desc_idf[qid]
+        # topic_idf_arr, desc_idf_arr = qid_topic_idf[qid], qid_desc_idf[qid]
+        topic_idf_arr, desc_idf_arr = None, qid_desc_idf[qid]
         descmax = maxqlen = MAX_QUERY_LENGTH
         didxs = list(range(len(desc_idf_arr)))
         mi = []
@@ -35,7 +37,7 @@ def _load_doc_mat_desc(qids, qid_topic_idf, qid_desc_idf):
             mi.append(desc_idf_arr[didxs])
         qid_term_idf[qid] = np.concatenate(mi, axis=0).astype(np.float32)
 
-        cwid_list = glob.glob('/topic_doc_mat/%d/'%(qid))
+        cwid_list = glob.glob('/desc_doc_mat/%d/'%(qid))
         for cwid in cwid_list: ##############  這邊要改成讀取資料夾內的所有npy
             topic_cwid_f = doc_mat_dir + '/topic_doc_mat/%d/%s.npy'%(qid, cwid)
             desc_cwid_f = doc_mat_dir + '/desc_doc_mat/%d/%s.npy'%(qid, cwid)
@@ -150,21 +152,25 @@ def sample_train_data_weighted(qid_wlen_cwid_mat, qid_cwid_label, query_idfs, sa
         #             (qid,qid in qid_cwid_label, qid in qid_wlen_cwid_mat))
         #     continue
 
-        qid_label_cwids[qid]=dict()
+        
+
+        qid_label_cwids[qid - 1]=dict()
+        print(qid_wlen_cwid_mat)
         wlen_k = list(qid_wlen_cwid_mat[qid].keys())[0]
+        # wlen_k = len(qid_wlen_cwid_mat[qid])
+        # wlen_k = 1
 
+        for cwid in qid_cwid_label[qid - 1]:
+            # l = label2tlabel[qid_cwid_label[qid][cwid]]
+            l = 1
+            # if cwid not in qid_wlen_cwid_mat[qid][wlen_k]:
+            #     logger.error('%s not in %d in qid_wlen_cwid_mat'%(cwid, qid))
+            #     continue
 
-        for cwid in qid_cwid_label[qid]:
-            l = label2tlabel[qid_cwid_label[qid][cwid]]
+            if l not in qid_label_cwids[qid - 1]:
+                qid_label_cwids[qid - 1][l] = list()
 
-            if cwid not in qid_wlen_cwid_mat[qid][wlen_k]:
-                logger.error('%s not in %d in qid_wlen_cwid_mat'%(cwid, qid))
-                continue
-
-            if l not in qid_label_cwids[qid]:
-                qid_label_cwids[qid][l] = list()
-
-            qid_label_cwids[qid][l].append(cwid)
+            qid_label_cwids[qid - 1][l].append(cwid)
 
             if l not in label_qid_count:
                 label_qid_count[l] = dict()
@@ -211,8 +217,9 @@ def sample_train_data_weighted(qid_wlen_cwid_mat, qid_cwid_label, query_idfs, sa
 
             if nl_selected == 0:
                 continue
-
+            # print(sample_label_qid_prob[label])
             selected_qids = np.random.choice(sample_qids, size=nl_selected, replace=True, p=sample_label_qid_prob[label])
+            # selected_qids = np.random.choice(sample_qids, size=nl_selected, replace=True, p=sample_label_qid_prob[1])
             qid_counter = Counter(selected_qids)
 
             for qid in qid_counter: 
@@ -222,7 +229,7 @@ def sample_train_data_weighted(qid_wlen_cwid_mat, qid_cwid_label, query_idfs, sa
                 if nq_selected == 0:
                     continue
                 for nl in reversed(range(label)):
-                    if nl in qid_label_cwids[qid]:
+                    if nl in qid_label_cwids[qid - 1]:
                         pos_label = label
                         neg_label = nl
                         break
@@ -230,8 +237,9 @@ def sample_train_data_weighted(qid_wlen_cwid_mat, qid_cwid_label, query_idfs, sa
                 if pos_label != label:
                     continue
 
-                pos_cwids = qid_label_cwids[qid][label]
-                neg_cwids = qid_label_cwids[qid][nl]
+                pos_cwids = qid_label_cwids[qid - 1][label]
+                # pos_cwids = qid_label_cwids[qid - 1][1]
+                neg_cwids = qid_label_cwids[qid - 1][nl]
                 n_pos, n_neg = len(pos_cwids), len(neg_cwids)
                 idx_poses = np.random.choice(list(range(n_pos)),size=nq_selected, replace=True)
                 min_wlen = min(qid_wlen_cwid_mat[qid])
@@ -303,7 +311,7 @@ def load_training_data():
     qid_topic_idf, qid_desc_idf = load_query_idf(qids)
     qid_cwid_rmat, qid_term_idf = _load_doc_mat_desc(qids, qid_topic_idf, qid_desc_idf) # 讀取doc的npy
 
-    qid_cwid_label = np.ones((150,1000))
+    qid_cwid_label = np.ones((150, 32))
     select_pos_func = getattr(select_doc_pos, 'select_pos_firstk')
     mat_ngrams = [3]#[max(N_GRAMS)]
 
