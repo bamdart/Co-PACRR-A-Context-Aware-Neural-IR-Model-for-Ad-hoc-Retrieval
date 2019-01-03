@@ -2,3 +2,5 @@
 /simmat
 /model_data
 *.zip
+/outputModel/
+/detail/

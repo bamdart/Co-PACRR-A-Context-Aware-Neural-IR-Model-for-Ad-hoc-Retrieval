@@ -96,7 +96,7 @@ def default_params():
     kmaxpool = 3 # top k for max pooling
     combine = 32 # type of combination layer to use. 0 for an LSTM, otherwise the number of feedforward layer dimensions
     qproximity = 0 # additional NxN proximity filter to include (0 to disable)
-    context = True # include match contexts? (boolean)
+    context = False # include match contexts? (boolean)
     shuffle = True # shuffle input to the combination layer? (i.e., LSTM or feedforward layer)
 
     ek = 10 # topk expansion terms to use when enhance=qexpand or enhance=both

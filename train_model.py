@@ -44,9 +44,9 @@ def main(_log, _config):
     expid = model.params_to_string(model_params)
    
     # the model files 
-    outdir='%s/train_%s/%s/model_weight/%s'%(p['parentdir'], p['train_years'], p['expname'], expid)
+    outdir='outputModel/'
     # the plots for the model, the training loss etc..
-    detail_outdir='%s/train_%s/%s/model_detail/'%(p['parentdir'], p['train_years'], p['expname'])
+    detail_outdir='detail/'
 
     if not os.path.isdir(detail_outdir + 'outs'):
         os.makedirs(detail_outdir + 'outs')
@@ -108,7 +108,7 @@ def main(_log, _config):
     epoch_train_loss = history.history['loss']
 
     # plot the training loss for debugging
-    plot_curve_loss(epoch_train_loss, detail_outdir, 'train_', expid, ['loss'])
+    # plot_curve_loss(epoch_train_loss, detail_outdir, 'train_', expid, ['loss'])
     historyfile = detail_outdir + 'hist_' + expid + '.history'
     with open(detail_outdir + 'hist_' + expid + '.p', 'wb') as handle:
         pickle.dump(history.history, handle, protocol=pickle.HIGHEST_PROTOCOL)

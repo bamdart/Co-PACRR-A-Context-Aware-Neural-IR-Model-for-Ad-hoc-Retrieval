@@ -5,7 +5,7 @@ import time
 import gensim
 from sklearn.metrics.pairwise import cosine_similarity
 
-ModelPath = "./Model/"
+ModelPath = "./model_data/"
 TrainingQueryPath = "./data/Query_Training/"
 DocumentPath = "./data/100000Doc/"
 
