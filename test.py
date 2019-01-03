@@ -294,18 +294,20 @@ def sample_train_data_weighted(qid_wlen_cwid_mat, qid_cwid_label, query_idfs, sa
         # yield (train_data, labels)
         return train_data, labels
 
+def load_training_data():
+    # 看你有幾個query  從1.npy開始讀取
+    qids = []
+    for i in range(1, 151):
+        qids.append(i)
 
-# 看你有幾個query  從1.npy開始讀取
-qids = []
-for i in range(1, 2):
-    qids.append(i)
+    qid_topic_idf, qid_desc_idf = load_query_idf(qids)
+    qid_cwid_rmat, qid_term_idf = _load_doc_mat_desc(qids, qid_topic_idf, qid_desc_idf) # 讀取doc的npy
 
-qid_topic_idf, qid_desc_idf = load_query_idf(qids)
-qid_cwid_rmat, qid_term_idf = _load_doc_mat_desc(qids, qid_topic_idf, qid_desc_idf) # 讀取doc的npy
+    select_pos_func = getattr(select_doc_pos, 'select_pos_firstk')
+    mat_ngrams = [3]#[max(N_GRAMS)]
 
-select_pos_func = getattr(select_doc_pos, 'select_pos_firstk')
-mat_ngrams = [3]#[max(N_GRAMS)]
+    qid_wlen_cwid_mat, qid_ext_idfarr = convert_cwid_udim_simmat(qids, qid_cwid_rmat, select_pos_func, qid_term_idf, mat_ngrams)
 
-qid_wlen_cwid_mat, qid_ext_idfarr = convert_cwid_udim_simmat(qids, qid_cwid_rmat, select_pos_func, qid_term_idf, mat_ngrams)
+    train_data_generator = sample_train_data_weighted(qid_wlen_cwid_mat, qid_cwid_label, qid_ext_idfarr, qids)
 
-pass
+    return train_data_generator
