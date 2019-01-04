@@ -138,13 +138,7 @@ def convert_cwid_udim_simmat(qids, qid_cwid_rmat, select_pos_func, qid_term_idf,
                                 mode='constant', constant_values=pad_value).astype(np.float32))    
     return qid_cwid_mat, qid_ext_idfarr
 
-'''
-還不能用
-qid_wlen_cwid_mat : query在不同n-gram跟doc的similar matrix，丟qid_wlen_cwid_mat進來
-qid_cwid_label : query跟doc是否有關，目前沒有這個
-query_idf : query的idf，丟qid_ext_idfarr進來
-sample_qids : query列表，丟qids進來
-'''
+
 def sample_train_data_weighted(qid_wlen_cwid_mat, qid_cwid_label, query_idfs, sample_qids):
     label2tlabel = {4:2,3:2,2:2,1:1,0:0,-2:0}#這裡我們應該只有1跟0
     #sample_label_prob = {2:0.5,1:0.5}#這裡我們應該只有1
@@ -313,6 +307,58 @@ def sample_train_data_weighted(qid_wlen_cwid_mat, qid_cwid_label, query_idfs, sa
         yield (train_data, labels)
         # return train_data, labels
 
+def load_test_data(): 
+    binarysimm = True
+
+    qids = []
+    # 測試用
+    for i in range(149, 150):
+        qids.append(i)
+    
+    select_pos_func = getattr(select_doc_pos, 'select_pos_firstk')
+    mat_ngrams = [3]
+
+    qid_topic_idf, qid_desc_idf = load_query_idf(qids)
+    qid_cwid_rmat, qid_term_idf, qid_cwid_label = _load_doc_mat_desc(qids, qid_topic_idf, qid_desc_idf)
+
+    qid_cwid_rqexpmat = None
+    qid_cwid_mat, qid_ext_idfarr = convert_cwid_udim_simmat(qids, qid_cwid_rmat, select_pos_func, qid_term_idf, mat_ngrams)
+
+    doc_vec, q_idfs, cwids, testqids  = dict(), list(), list(), list()
+    for qid in qids:
+        if qid not in qid_cwid_label or qid not in qid_cwid_mat:
+            logger.error('Error: %d not in qid_cwid_label or not in qid_cwid_mat for test data'%qid)
+            continue
+        if len(qid_cwid_mat[qid]) == 0:
+            logger.error('Error: no doc in qid_cwid_mat for %d'%qid)
+            continue
+        cwid_label = qid_cwid_label[qid]
+        min_wlen = min(qid_cwid_mat[qid])
+        for wlen in qid_cwid_mat[qid]:
+            if wlen not in doc_vec:
+                doc_vec[wlen] = list()
+            for cwid in qid_cwid_mat[qid][wlen]:
+                if wlen == min_wlen:
+                    cwids.append(cwid)
+                    testqids.append(qid)
+                    q_idfs.append(qid_ext_idfarr[qid].reshape((1, qid_ext_idfarr[qid].shape[0],1)))
+                doc_vec[wlen].append(qid_cwid_mat[qid][wlen][cwid]) 
+
+    getmat = lambda x: np.array(x)
+        
+    test_data = {'doc_wlen_%d'%wlen: np.array(getmat(doc_vec[wlen])) for wlen in doc_vec}
+
+    if binarysimm:
+        for k in test_data:
+            assert k.find("_wlen_") != -1, "data contains non-simmat objects"
+            test_data[k] = (test_data[k] >= 0.999).astype(np.int8)
+
+    q_idfs = np.concatenate(q_idfs, axis=0)
+    logger.info('Test data: {0} {1} {2}'.format([(wlen, getmat(doc_vec[wlen]).shape) for wlen in doc_vec], q_idfs.shape, len(cwids)))
+    test_data['query_idf']=q_idfs
+
+    return test_data, cwids, testqids
+
 def load_training_data():
     # 看你有幾個query  從1.npy開始讀取
     qids = []
@@ -331,3 +377,11 @@ def load_training_data():
     train_data_generator = sample_train_data_weighted(qid_wlen_cwid_mat, qid_cwid_label, qid_ext_idfarr, qids)
 
     return train_data_generator
+
+# 測試load_test_data
+if __name__ == "__main__":
+    test_data, cwids, testqids = load_test_data()
+    print(test_data)
+    print(cwids)
+    print(testqids)
+    input()
