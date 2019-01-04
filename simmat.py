@@ -3,8 +3,20 @@ import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from PreTrain import TrainingQueryPath
 from itertools import chain
+import threading
 
 OutputPath = 'simmat'
+
+# 子執行緒類別
+class MyThread(threading.Thread):
+  def __init__(self, min, max):
+    threading.Thread.__init__(self)
+    self.min = min
+    self.max = max
+    self.w2v_model = gensim.models.Word2Vec.load(ModelPath + "word2vec.model")
+
+  def run(self):
+    create_sim_npy(self.w2v_model, self.min, self.max)
 
 def build_sim_matrix(query, document, w2v_model):
     matrix = np.zeros((len(query), len(document)))
@@ -17,7 +29,9 @@ def build_sim_matrix(query, document, w2v_model):
 
     return matrix
 
-def create_sim_npy(query_filename, queries, doc_filename, documents, words, w2v_model):
+def create_sim_npy(w2v_model, min, max):
+    print('start', min, max)
+
     # Create dir
     if not os.path.isdir(OutputPath):
         os.makedirs(OutputPath)
@@ -38,7 +52,7 @@ def create_sim_npy(query_filename, queries, doc_filename, documents, words, w2v_
     )
 
     # get word idf
-    vectorizer.fit_transform(words)
+    vectorizer.fit_transform(word_index)
     idf = vectorizer.idf_
     word2idf = dict(zip(vectorizer.get_feature_names(), idf))
     
@@ -48,8 +62,11 @@ def create_sim_npy(query_filename, queries, doc_filename, documents, words, w2v_
         f.readline()
         solution = [line[line.find(',') + 1:].split() for line in f.readlines()]
 
-    qid = 150
-    for query in queries:
+    qid = 1
+    for query in query_sentence:
+        if(qid < min):
+            qid += 1
+            continue
         # save qeury word idf
         query_idf = np.array(list(map(lambda x: word2idf[x], query)))
         print(query_idf.shape)
@@ -62,25 +79,36 @@ def create_sim_npy(query_filename, queries, doc_filename, documents, words, w2v_
         # if doc in the solution, build simmat and save
         all_doc = set(list(chain.from_iterable(solution)))
         for doc_id in all_doc:
-            if doc_id not in doc_filename: # solution doc does not exist
+            if doc_id not in document_filename: # solution doc does not exist
                 continue
             label = 0
             if doc_id in solution[int(query_filename[qid - 1]) - 1]:
                 label = 1
-            doc = documents[int(doc_filename.index(doc_id))]
+            doc = document_sentence[int(document_filename.index(doc_id))]
             sim_mat = build_sim_matrix(query, doc, w2v_model)
             np.save("%s/%s/%d/%s_%d.npy" % (OutputPath, 'desc_doc_mat',qid, doc_id, label), sim_mat)
             print(sim_mat.shape)
                 
-        qid -= 1
+        qid += 1
+        if qid > max:
+            break
+    print('finish', min, max)
 
 
 
-if __name__ == '__main__':
-    from PreTrain import LoadingTrainingData, ModelPath
-    import gensim
-    word_index, query_filename, query_sentence, queries, document_filename, document_sentence, documents = LoadingTrainingData()
-    w2v_model = gensim.models.Word2Vec.load(ModelPath + "word2vec.model")
+from PreTrain import LoadingTrainingData, ModelPath
+import gensim
+word_index, query_filename, query_sentence, queries, document_filename, document_sentence, documents = LoadingTrainingData()
+# w2v_model = gensim.models.Word2Vec.load(ModelPath + "word2vec.model")
 
-    create_sim_npy(query_filename, query_sentence, document_filename, document_sentence, word_index, w2v_model)
+threads = []
+for i in range(1, 150,5):
+    print(i, i + 4)
+    threads.append(MyThread(i, i + 4))
 
+for i in range(len(threads)):
+    threads[i].start()
+
+for i in range(len(threads)):
+    threads[i].join()
+# query_filename, queries, doc_filename, documents, words, 
