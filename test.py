@@ -312,7 +312,7 @@ def load_test_data():
 
     qids = []
     # 測試用
-    for i in range(149, 150):
+    for i in range(1, 2):
         qids.append(i)
     
     select_pos_func = getattr(select_doc_pos, 'select_pos_firstk')
@@ -362,7 +362,7 @@ def load_test_data():
 def load_training_data():
     # 看你有幾個query  從1.npy開始讀取
     qids = []
-    for i in range(1, 2):
+    for i in range(1, 150):
         qids.append(i)
 
     qid_topic_idf, qid_desc_idf = load_query_idf(qids)
